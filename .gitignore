@@ -24,3 +24,7 @@ target
 # Added by cargo
 
 /target
+
+# Resource files that we use for testing, but don't want to include
+# copyrighted music in the repository.
+resources/*.mp3
