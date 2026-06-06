@@ -1,7 +1,7 @@
 use std::{
     fs::{self, DirEntry},
     io::Result,
-    path::{Path, PathBuf},
+    path::PathBuf,
     process::exit,
 };
 
@@ -66,7 +66,7 @@ fn main() -> Result<()> {
         if possible_mp3_file
             .file_name()
             .into_string()
-            .unwrap_or("".to_string())
+            .unwrap_or("".to_owned())
             .ends_with("mp3")
         {
             mp3_file = Some(possible_mp3_file);
@@ -108,11 +108,10 @@ fn main() -> Result<()> {
         mp3_data[6], mp3_data[7], mp3_data[8], mp3_data[9]
     );
 
-    let total_size: u32 = (((mp3_data[6] as u32) << 21)
-        | ((mp3_data[7] as u32) << 14)
-        | ((mp3_data[8] as u32) << 7)
-        | mp3_data[9] as u32)
-        .into();
+    let total_size: u32 = (u32::from(mp3_data[6]) << 21)
+        | (u32::from(mp3_data[7]) << 14)
+        | (u32::from(mp3_data[8]) << 7)
+        | u32::from(mp3_data[9]);
 
     println!("Total size file is {} bytes", total_size);
 
