@@ -70,6 +70,7 @@ fn main() -> Result<()> {
             .ends_with("mp3")
         {
             mp3_file = Some(possible_mp3_file);
+            break;
         }
     }
 
@@ -78,9 +79,11 @@ fn main() -> Result<()> {
         exit(1);
     }
 
-    println!("MP3 path is: {}", mp3_path.display());
+    let mp3_file = mp3_file.unwrap();
 
-    let mp3_data = fs::read(mp3_path)?;
+    println!("MP3 path is: {:?}", mp3_file);
+
+    let mp3_data = fs::read(mp3_file.path())?;
 
     println!("Bytes read: {}", mp3_data.iter().len());
 
