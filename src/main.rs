@@ -5,6 +5,8 @@ use std::{
     process::exit,
 };
 
+mod id3_tags;
+
 fn parse_metadata(data: &[u8]) {
     println!("Parsing metadata");
     let mut s = 0;
