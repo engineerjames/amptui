@@ -13,6 +13,7 @@ trait ID3Parser {
     fn parse(&self, data: &[u8], version: ID3Version) -> HashMap<ID3TagType, ID3TagData>;
 }
 
+#[allow(unused)]
 pub enum ID3TagData {
     UTF8Text(String),
     UTF16Text(Vec<u16>),
@@ -23,12 +24,14 @@ struct ID3V1Parser;
 struct ID3V2Parser;
 
 impl ID3Parser for ID3V1Parser {
+    #[allow(unused)]
     fn parse(&self, data: &[u8], version: ID3Version) -> HashMap<ID3TagType, ID3TagData> {
         HashMap::new()
     }
 }
 
 impl ID3Parser for ID3V2Parser {
+    #[allow(unused)]
     fn parse(&self, data: &[u8], version: ID3Version) -> HashMap<ID3TagType, ID3TagData> {
         HashMap::new()
     }
@@ -397,6 +400,7 @@ pub fn get_id3_version(data: &[u8]) -> ID3Version {
     }
 }
 
+#[allow(unused)]
 pub fn get_id3_tags(data: &[u8]) -> HashMap<ID3TagType, ID3TagData> {
     let version = get_id3_version(data);
 
@@ -406,12 +410,11 @@ pub fn get_id3_tags(data: &[u8]) -> HashMap<ID3TagType, ID3TagData> {
             Box::new(ID3V2Parser)
         }
         ID3Version::Unknown => {
-            println!("Unknown ID3 version, cannot parse tags");
             return HashMap::new();
         }
     };
 
-    parser.parse(data)
+    parser.parse(data, version)
 }
 
 mod tests {
