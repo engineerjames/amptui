@@ -1,5 +1,15 @@
-/// ID3v2 tag types with their definitions from the ID3v2.3 standard
+#[allow(unused)]
+const MIN_MP3_SIZE_BYTES: usize = 128;
+
+#[allow(unused)]
+const ID3V2_HEADER_SIZE_BYTES: usize = 10;
+
+#[allow(unused)]
+const ID3V1_OFFSET_FROM_END_BYTES: usize = 128;
+
+#[allow(unused)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+/// ID3v2 tag types with their definitions from the ID3v2.3 standard
 pub enum ID3TagType {
     /// AENC - This frame indicates if the actual audio stream is encrypted, and by whom.
     AENC,
@@ -131,6 +141,7 @@ pub enum ID3TagType {
     WPUB,
 }
 
+#[allow(unused)]
 const TAG_DESCRIPTIONS: &[(ID3TagType, &str)] = &[
     (
         ID3TagType::AENC,
@@ -271,6 +282,7 @@ const TAG_DESCRIPTIONS: &[(ID3TagType, &str)] = &[
 ];
 
 impl ID3TagType {
+    #[allow(unused)]
     pub fn get_description(&self) -> Option<&'static str> {
         let tag_to_return = TAG_DESCRIPTIONS
             .iter()
@@ -281,6 +293,8 @@ impl ID3TagType {
     }
 }
 
+#[allow(unused)]
+#[derive(PartialEq, Debug)]
 /// Version of the ID3 tag standard, which controls how to decode the tag data.
 pub enum ID3Version {
     /// The v1 tag allows 30 bytes each for the title, artist, album, and a "comment",
@@ -328,8 +342,13 @@ pub enum ID3Version {
 
 // TODO: Look into APE tags as well?
 
+#[allow(unused)]
 /// Retrieves the ID3 version from the given (full) MP3 binary data.
 pub fn get_id3_version(data: &[u8]) -> ID3Version {
+    if data.len() < MIN_MP3_SIZE_BYTES {
+        return ID3Version::Unknown;
+    }
+
     // ID3v2 tags are at the very beginning of the file and start with "ID3"
     if data[0..3] == *b"ID3" {
         let minor_version = data[3];
@@ -342,7 +361,7 @@ pub fn get_id3_version(data: &[u8]) -> ID3Version {
         }
     } else {
         // If the tag is not at the beginning, it must be at the end of the file and is v1.1 or v1.2
-        let tag_start = data.len() - 128;
+        let tag_start = data.len() - ID3V1_OFFSET_FROM_END_BYTES;
         if data[tag_start..tag_start + 3] == *b"TAG" {
             ID3Version::V3_1_0
         } else {
@@ -358,5 +377,26 @@ mod tests {
     #[test]
     fn test_get_description_correct_value() {
         assert_ne!(ID3TagType::AENC.get_description(), None);
+    }
+
+    #[test]
+    fn test_get_id3_version_v3_2() {
+        let mut data: Vec<u8> = vec![0; MIN_MP3_SIZE_BYTES];
+        data[0..10].copy_from_slice(b"ID3\x03\x00\x00\x00\x00\x00\x0F");
+        assert_eq!(get_id3_version(&data), ID3Version::V3_2_3);
+    }
+
+    #[test]
+    fn test_get_id3_version_v3_1() {
+        let mut data: Vec<u8> = vec![0; ID3V1_OFFSET_FROM_END_BYTES];
+        data[0..3].copy_from_slice(b"TAG");
+        assert_eq!(get_id3_version(&data), ID3Version::V3_1_0);
+    }
+
+    #[test]
+    fn test_get_id3_version_unknown() {
+        let mut data: Vec<u8> = vec![0; MIN_MP3_SIZE_BYTES];
+        data[0..10].copy_from_slice(b"NOTID3DATA");
+        assert_eq!(get_id3_version(&data), ID3Version::Unknown);
     }
 }
