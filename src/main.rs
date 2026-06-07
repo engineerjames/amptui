@@ -99,6 +99,8 @@ fn main() -> Result<()> {
     // ID3v1 has 'TAG' 128 bytes from the end of the file
     //
 
+    println!("First several bytes: {:?}", &mp3_data[0..10]);
+
     // For ID3v2, the header is 10 bytes of data that follows the ID3 tag
     // so it will be bytes
     // ID3 tags

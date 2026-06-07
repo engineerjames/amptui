@@ -281,6 +281,76 @@ impl ID3TagType {
     }
 }
 
+/// Version of the ID3 tag standard, which controls how to decode the tag data.
+pub enum ID3Version {
+    /// The v1 tag allows 30 bytes each for the title, artist, album, and a "comment",
+    /// 4 bytes for the year, and 1 byte to identify the genre of the song from a predefined
+    /// list of values: https://en.wikipedia.org/wiki/List_of_ID3v1_genres
+    V3_1_0,
+
+    /// In 1997, a modification to ID3v1 was proposed in which two bytes formerly allocated
+    /// to the comment field were used instead to store a track number so that albums stored
+    /// across multiple files could be correctly ordered. The modified format became known as ID3v1.1
+    V3_1_1,
+
+    /// BirdCage Software proposed ID3v1.2 in the early 2000s, which enlarged many
+    /// of the fields from 30 to 60 bytes and added a sub-genre field while retaining
+    /// backward compatibility with v1.1 by placing its new "enhanced" tag in front of a
+    /// standard v1.1 tag.
+    V3_1_2,
+
+    /// ID3v2 tags are of variable size and are usually placed at the start of the file,
+    /// which enables metadata to load immediately, even when the file as a whole is loading
+    /// incrementally during streaming. A ID3v2 tag consists of a number of optional frames,
+    /// each of which contains a piece of metadata up to 16 MB in size. For example, a TT2 frame
+    /// may be included to contain a title. The entire tag may be as large as 256 MB, and strings
+    /// may be encoded in Unicode.
+    V3_2_0,
+
+    /// The first public variant of v2, ID3v2.2, used three character frame identifiers rather than
+    /// four (TT2 for the title instead of TIT2). It is considered obsolete.
+    V3_2_2,
+
+    /// ID3v2.3 is the most widely used version of ID3v2 tags and is widely supported by Windows
+    /// Explorer and Windows Media Player. Notably it introduced the ability to embed an image
+    /// such as an album cover.
+    V3_2_3,
+
+    /// ID3v2.4 was published on November 1, 2000. It defines 83 frame types, allows text frames to
+    /// contain multiple values separated with a null byte, and permits the tag to be stored at either
+    /// the beginning or the end of the file.
+    V3_2_4,
+
+    /// If the tag doesn't match anything we expect, we can use this to signal that we are going
+    /// to have to do our best given the data we have with no guarantee of success.
+    Unknown,
+}
+
+// TODO: Look into APE tags as well?
+
+/// Retrieves the ID3 version from the given (full) MP3 binary data.
+pub fn get_id3_version(data: &[u8]) -> ID3Version {
+    // ID3v2 tags are at the very beginning of the file and start with "ID3"
+    if data[0..3] == *b"ID3" {
+        let minor_version = data[3];
+
+        match minor_version {
+            2 => ID3Version::V3_2_2,
+            3 => ID3Version::V3_2_3,
+            4 => ID3Version::V3_2_4,
+            _ => ID3Version::Unknown,
+        }
+    } else {
+        // If the tag is not at the beginning, it must be at the end of the file and is v1.1 or v1.2
+        let tag_start = data.len() - 128;
+        if data[tag_start..tag_start + 3] == *b"TAG" {
+            ID3Version::V3_1_0
+        } else {
+            ID3Version::Unknown
+        }
+    }
+}
+
 mod tests {
     #[allow(unused)]
     use super::*;
