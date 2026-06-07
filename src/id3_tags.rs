@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 #[allow(unused)]
 const MIN_MP3_SIZE_BYTES: usize = 128;
 
@@ -6,6 +8,31 @@ const ID3V2_HEADER_SIZE_BYTES: usize = 10;
 
 #[allow(unused)]
 const ID3V1_OFFSET_FROM_END_BYTES: usize = 128;
+
+trait ID3Parser {
+    fn parse(&self, data: &[u8], version: ID3Version) -> HashMap<ID3TagType, ID3TagData>;
+}
+
+pub enum ID3TagData {
+    UTF8Text(String),
+    UTF16Text(Vec<u16>),
+    Binary(Vec<u8>),
+}
+
+struct ID3V1Parser;
+struct ID3V2Parser;
+
+impl ID3Parser for ID3V1Parser {
+    fn parse(&self, data: &[u8], version: ID3Version) -> HashMap<ID3TagType, ID3TagData> {
+        HashMap::new()
+    }
+}
+
+impl ID3Parser for ID3V2Parser {
+    fn parse(&self, data: &[u8], version: ID3Version) -> HashMap<ID3TagType, ID3TagData> {
+        HashMap::new()
+    }
+}
 
 #[allow(unused)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -368,6 +395,23 @@ pub fn get_id3_version(data: &[u8]) -> ID3Version {
             ID3Version::Unknown
         }
     }
+}
+
+pub fn get_id3_tags(data: &[u8]) -> HashMap<ID3TagType, ID3TagData> {
+    let version = get_id3_version(data);
+
+    let parser: Box<dyn ID3Parser> = match version {
+        ID3Version::V3_1_0 | ID3Version::V3_1_1 | ID3Version::V3_1_2 => Box::new(ID3V1Parser),
+        ID3Version::V3_2_0 | ID3Version::V3_2_2 | ID3Version::V3_2_3 | ID3Version::V3_2_4 => {
+            Box::new(ID3V2Parser)
+        }
+        ID3Version::Unknown => {
+            println!("Unknown ID3 version, cannot parse tags");
+            return HashMap::new();
+        }
+    };
+
+    parser.parse(data)
 }
 
 mod tests {
