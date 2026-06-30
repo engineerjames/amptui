@@ -1,19 +1,60 @@
 use std::collections::HashMap;
 
+use crate::id3_tags::Encoding::{Iso8859_1, Utf8, Utf16Be, Utf16WithBom};
+
 const MIN_MP3_SIZE_BYTES: usize = 128;
 
 const ID3V2_HEADER_SIZE_BYTES: usize = 10;
 
 const ID3V1_OFFSET_FROM_END_BYTES: usize = 128;
 
+#[allow(unused)]
+#[derive(Debug, PartialEq, Eq)]
+pub enum Encoding {
+    Iso8859_1 = 0x00,
+    Utf16WithBom = 0x01,
+    Utf16Be = 0x02,
+    Utf8 = 0x03,
+}
+
+impl From<u8> for Encoding {
+    fn from(value: u8) -> Self {
+        match value {
+            0 => Iso8859_1,
+            1 => Utf16WithBom,
+            2 => Utf16Be,
+            3 => Utf8,
+            4_u8..=u8::MAX => panic!("Encoding unknown!"),
+        }
+    }
+}
+
+impl Encoding {
+    pub fn is_utf16(&self) -> bool {
+        *self == Self::Utf16Be || *self == Self::Utf16WithBom
+    }
+}
+
 trait ID3Parser {
     fn parse(&self, data: &[u8], version: ID3Version) -> HashMap<ID3TagType, ID3TagData>;
 }
 
+#[allow(unused)]
 pub enum ID3TagData {
     UTF8Text(String),
     UTF16Text(Vec<u16>),
     Binary(Vec<u8>),
+    Picture {
+        mime: String,
+        pic_type: u8,
+        description: String,
+        data: Vec<u8>,
+    },
+    Comment {
+        lang: [u8; 3],
+        description: String,
+        text: String,
+    },
 }
 
 struct ID3V1Parser;
@@ -37,6 +78,10 @@ impl ID3Parser for ID3V2Parser {
             let frame_id = &data[s..s + 4];
             println!("Frame id: {}", str::from_utf8(frame_id).unwrap());
 
+            if let Ok(tag) = ID3TagType::try_from(&data[s..s + 4]) {
+                println!("tag={:?}", tag);
+            }
+
             if frame_id == [0, 0, 0, 0] {
                 println!("Exiting metadata loop due to empty frame id");
                 break;
@@ -52,24 +97,25 @@ impl ID3Parser for ID3V2Parser {
 
             let payload_start = s + 10;
             let payload_end = payload_start + frame_size as usize;
-            if payload_end <= data.len() && frame_size > 0 {
-                // First byte is text encoding
-                let encoding = data[payload_start];
 
-                // For text frames (TIT2 is title), skip encoding byte
-                if encoding == 1 || encoding == 2 {
-                    // UTF-16 encoded
-                    let text_bytes = &data[payload_start + 1..payload_end];
-                    let utf16_values: Vec<u16> = text_bytes
-                        .chunks_exact(2)
-                        .map(|chunk| {
-                            let array: [u8; 2] = chunk.try_into().unwrap();
-                            u16::from_le_bytes(array)
-                        })
-                        .skip(1)
-                        .collect();
-                    println!("Text: {:?}", String::from_utf16_lossy(&utf16_values));
-                }
+            // First byte is text encoding
+            let encoding = Encoding::from(data[payload_start]);
+
+            println!("Found encoding: {:?}", encoding);
+
+            // For text frames (TIT2 is title), skip encoding byte
+            if encoding.is_utf16() {
+                // UTF-16 encoded
+                let text_bytes = &data[payload_start + 1..payload_end];
+                let utf16_values: Vec<u16> = text_bytes
+                    .chunks_exact(2)
+                    .map(|chunk| {
+                        let array: [u8; 2] = chunk.try_into().unwrap();
+                        u16::from_le_bytes(array)
+                    })
+                    .skip(1)
+                    .collect();
+                println!("Text: {:?}", String::from_utf16_lossy(&utf16_values));
             }
 
             s += ID3V2_HEADER_SIZE_BYTES + frame_size as usize;
