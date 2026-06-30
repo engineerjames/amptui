@@ -1,19 +1,15 @@
 use std::collections::HashMap;
 
-#[allow(unused)]
 const MIN_MP3_SIZE_BYTES: usize = 128;
 
-#[allow(unused)]
 const ID3V2_HEADER_SIZE_BYTES: usize = 10;
 
-#[allow(unused)]
 const ID3V1_OFFSET_FROM_END_BYTES: usize = 128;
 
 trait ID3Parser {
     fn parse(&self, data: &[u8], version: ID3Version) -> HashMap<ID3TagType, ID3TagData>;
 }
 
-#[allow(unused)]
 pub enum ID3TagData {
     UTF8Text(String),
     UTF16Text(Vec<u16>),
@@ -31,9 +27,59 @@ impl ID3Parser for ID3V1Parser {
 }
 
 impl ID3Parser for ID3V2Parser {
-    #[allow(unused)]
-    fn parse(&self, data: &[u8], version: ID3Version) -> HashMap<ID3TagType, ID3TagData> {
-        HashMap::new()
+    fn parse(&self, data: &[u8], _version: ID3Version) -> HashMap<ID3TagType, ID3TagData> {
+        let tags = HashMap::new();
+
+        println!("Parsing metadata");
+        let mut s = ID3V2_HEADER_SIZE_BYTES;
+        loop {
+            println!("s={}", s);
+            let frame_id = &data[s..s + 4];
+            println!("Frame id: {}", str::from_utf8(frame_id).unwrap());
+
+            if frame_id == [0, 0, 0, 0] {
+                println!("Exiting metadata loop due to empty frame id");
+                break;
+            }
+
+            let frame_size =
+                u32::from_be_bytes([data[s + 4], data[s + 5], data[s + 6], data[s + 7]]);
+            println!("Frame size: {}", frame_size);
+
+            if data[s + 8] != 0 || data[s + 9] != 0 {
+                println!("Flags: {} and {}", data[s + 8], data[s + 9]);
+            }
+
+            let payload_start = s + 10;
+            let payload_end = payload_start + frame_size as usize;
+            if payload_end <= data.len() && frame_size > 0 {
+                // First byte is text encoding
+                let encoding = data[payload_start];
+
+                // For text frames (TIT2 is title), skip encoding byte
+                if encoding == 1 || encoding == 2 {
+                    // UTF-16 encoded
+                    let text_bytes = &data[payload_start + 1..payload_end];
+                    let utf16_values: Vec<u16> = text_bytes
+                        .chunks_exact(2)
+                        .map(|chunk| {
+                            let array: [u8; 2] = chunk.try_into().unwrap();
+                            u16::from_le_bytes(array)
+                        })
+                        .skip(1)
+                        .collect();
+                    println!("Text: {:?}", String::from_utf16_lossy(&utf16_values));
+                }
+            }
+
+            s += ID3V2_HEADER_SIZE_BYTES + frame_size as usize;
+
+            if s >= data.len() {
+                break;
+            }
+        }
+
+        tags
     }
 }
 
@@ -171,7 +217,80 @@ pub enum ID3TagType {
     WPUB,
 }
 
-#[allow(unused)]
+impl TryFrom<&[u8]> for ID3TagType {
+    type Error = String;
+
+    fn try_from(value: &[u8]) -> Result<Self, String> {
+        match value {
+            b"AENC" => Ok(ID3TagType::AENC),
+            b"APIC" => Ok(ID3TagType::APIC),
+            b"COMM" => Ok(ID3TagType::COMM),
+            b"COMR" => Ok(ID3TagType::COMR),
+            b"ENCR" => Ok(ID3TagType::ENCR),
+            b"GEOB" => Ok(ID3TagType::GEOB),
+            b"GRID" => Ok(ID3TagType::GRID),
+            b"MCDI" => Ok(ID3TagType::MCDI),
+            b"MLLT" => Ok(ID3TagType::MLLT),
+            b"OWNE" => Ok(ID3TagType::OWNE),
+            b"PCNT" => Ok(ID3TagType::PCNT),
+            b"POPM" => Ok(ID3TagType::POPM),
+            b"POSS" => Ok(ID3TagType::POSS),
+            b"PRIV" => Ok(ID3TagType::PRIV),
+            b"RVAD" => Ok(ID3TagType::RVAD),
+            b"RVRB" => Ok(ID3TagType::RVRB),
+            b"SYLT" => Ok(ID3TagType::SYLT),
+            b"SYTC" => Ok(ID3TagType::SYTC),
+            b"TALB" => Ok(ID3TagType::TALB),
+            b"TBPM" => Ok(ID3TagType::TBPM),
+            b"TCOP" => Ok(ID3TagType::TCOP),
+            b"TCOM" => Ok(ID3TagType::TCOM),
+            b"TCON" => Ok(ID3TagType::TCON),
+            b"TDAT" => Ok(ID3TagType::TDAT),
+            b"TDLY" => Ok(ID3TagType::TDLY),
+            b"TENC" => Ok(ID3TagType::TENC),
+            b"TEXT" => Ok(ID3TagType::TEXT),
+            b"TFLT" => Ok(ID3TagType::TFLT),
+            b"TIME" => Ok(ID3TagType::TIME),
+            b"TIT1" => Ok(ID3TagType::TIT1),
+            b"TIT2" => Ok(ID3TagType::TIT2),
+            b"TIT3" => Ok(ID3TagType::TIT3),
+            b"TKEY" => Ok(ID3TagType::TKEY),
+            b"TLAN" => Ok(ID3TagType::TLAN),
+            b"TLEN" => Ok(ID3TagType::TLEN),
+            b"TMED" => Ok(ID3TagType::TMED),
+            b"TOAL" => Ok(ID3TagType::TOAL),
+            b"TOFN" => Ok(ID3TagType::TOFN),
+            b"TOLY" => Ok(ID3TagType::TOLY),
+            b"TOPE" => Ok(ID3TagType::TOPE),
+            b"TORY" => Ok(ID3TagType::TORY),
+            b"TOWN" => Ok(ID3TagType::TOWN),
+            b"TPE1" => Ok(ID3TagType::TPE1),
+            b"TPE2" => Ok(ID3TagType::TPE2),
+            b"TPE3" => Ok(ID3TagType::TPE3),
+            b"TPE4" => Ok(ID3TagType::TPE4),
+            b"TPOS" => Ok(ID3TagType::TPOS),
+            b"TPUB" => Ok(ID3TagType::TPUB),
+            b"TRCK" => Ok(ID3TagType::TRCK),
+            b"TRDA" => Ok(ID3TagType::TRDA),
+            b"TRSN" => Ok(ID3TagType::TRSN),
+            b"TRSO" => Ok(ID3TagType::TRSO),
+            b"TSIZ" => Ok(ID3TagType::TSIZ),
+            b"TSRC" => Ok(ID3TagType::TSRC),
+            b"TYER" => Ok(ID3TagType::TYER),
+            b"USER" => Ok(ID3TagType::USER),
+            b"WCOM" => Ok(ID3TagType::WCOM),
+            b"WCOP" => Ok(ID3TagType::WCOP),
+            b"WOAF" => Ok(ID3TagType::WOAF),
+            b"WOAR" => Ok(ID3TagType::WOAR),
+            b"WOAS" => Ok(ID3TagType::WOAS),
+            b"WORS" => Ok(ID3TagType::WORS),
+            b"WPAY" => Ok(ID3TagType::WPAY),
+            b"WPUB" => Ok(ID3TagType::WPUB),
+            _ => Err("Unknown ID3 tag type".to_owned()),
+        }
+    }
+}
+
 const TAG_DESCRIPTIONS: &[(ID3TagType, &str)] = &[
     (
         ID3TagType::AENC,
@@ -370,9 +489,6 @@ pub enum ID3Version {
     Unknown,
 }
 
-// TODO: Look into APE tags as well?
-
-#[allow(unused)]
 /// Retrieves the ID3 version from the given (full) MP3 binary data.
 pub fn get_id3_version(data: &[u8]) -> ID3Version {
     if data.len() < MIN_MP3_SIZE_BYTES {
@@ -391,7 +507,7 @@ pub fn get_id3_version(data: &[u8]) -> ID3Version {
         }
     } else {
         // If the tag is not at the beginning, it must be at the end of the file and is v1.1 or v1.2
-        let tag_start = data.len() - ID3V1_OFFSET_FROM_END_BYTES;
+        let tag_start = data.len() - ID3V1_OFFSET_FROM_END_BYTES - 1;
         if data[tag_start..tag_start + 3] == *b"TAG" {
             ID3Version::V3_1_0
         } else {
@@ -400,7 +516,6 @@ pub fn get_id3_version(data: &[u8]) -> ID3Version {
     }
 }
 
-#[allow(unused)]
 pub fn get_id3_tags(data: &[u8]) -> HashMap<ID3TagType, ID3TagData> {
     let version = get_id3_version(data);
 

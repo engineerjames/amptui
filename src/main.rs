@@ -5,6 +5,8 @@ use std::{
     process::exit,
 };
 
+use crate::id3_tags::ID3Version;
+
 mod id3_tags;
 
 fn parse_metadata(data: &[u8]) {
@@ -69,7 +71,8 @@ fn main() -> Result<()> {
             .file_name()
             .into_string()
             .unwrap_or("".to_owned())
-            .ends_with("mp3")
+            .starts_with("23")
+        // TODO: Remove this
         {
             mp3_file = Some(possible_mp3_file);
             break;
@@ -89,42 +92,13 @@ fn main() -> Result<()> {
 
     println!("Bytes read: {}", mp3_data.iter().len());
 
-    // First three bytes should be ID3?
-    // If ID3v1 the tag is at the end of the file, but
-    // ID3v2 is at the beginning and is marked by ID3 in the first three bytes
-    if mp3_data[0..3] == *b"ID3" {
-        println!("ID3v2 tags detected");
+    let version = id3_tags::get_id3_version(&mp3_data);
+    println!("Version: {:?}", version);
+
+    if version != ID3Version::Unknown {
+        let tags = id3_tags::get_id3_tags(&mp3_data);
+        println!("Number of tags: {:?}", tags.len());
     }
-
-    // ID3v1 has 'TAG' 128 bytes from the end of the file
-    //
-
-    println!("First several bytes: {:?}", &mp3_data[0..10]);
-
-    // For ID3v2, the header is 10 bytes of data that follows the ID3 tag
-    // so it will be bytes
-    // ID3 tags
-
-    // Bytes 3 - 4 are the version (0 - 1 in header_data)
-    // Byte 5 is the flags
-    // Bytes 6 - 9 is the 32-bit synch-safe integer, of which bit 7 is always 0
-    println!("Version bytes: {} and {}", mp3_data[3], mp3_data[4]);
-    println!("Flags: {}", mp3_data[5]);
-    println!(
-        "Synch-safe integer bytes: {} {} {} {}",
-        mp3_data[6], mp3_data[7], mp3_data[8], mp3_data[9]
-    );
-
-    let total_size: u32 = (u32::from(mp3_data[6]) << 21)
-        | (u32::from(mp3_data[7]) << 14)
-        | (u32::from(mp3_data[8]) << 7)
-        | u32::from(mp3_data[9]);
-
-    println!("Total size file is {} bytes", total_size);
-
-    let begin: usize = 10;
-    let end: usize = 10 + total_size as usize;
-    parse_metadata(&mp3_data[begin..end]);
 
     Ok(())
 }
