@@ -1,7 +1,5 @@
 use std::collections::HashMap;
 
-use crate::id3_tags::Encoding::{Iso8859_1, Utf8, Utf16Be, Utf16WithBom};
-
 const MIN_MP3_SIZE_BYTES: usize = 128;
 
 const ID3V2_HEADER_SIZE_BYTES: usize = 10;
@@ -15,16 +13,17 @@ pub enum Encoding {
     Utf16WithBom = 0x01,
     Utf16Be = 0x02,
     Utf8 = 0x03,
+    Unknown = 0xDE,
 }
 
 impl From<u8> for Encoding {
     fn from(value: u8) -> Self {
         match value {
-            0 => Iso8859_1,
-            1 => Utf16WithBom,
-            2 => Utf16Be,
-            3 => Utf8,
-            4_u8..=u8::MAX => panic!("Encoding unknown!"),
+            0 => Self::Iso8859_1,
+            1 => Self::Utf16WithBom,
+            2 => Self::Utf16Be,
+            3 => Self::Utf8,
+            4_u8..=u8::MAX => Self::Unknown,
         }
     }
 }
